@@ -1,9 +1,9 @@
 const scraperObject = {
-    url: 'https://pk.khaadi.com/unstitched.html',
+    url: 'https://pk.khaadi.com/',
     async scraper(browser, category) {
         let page = await browser.newPage();
         console.log(`Navigating to ${this.url}...`);
-        await page.goto(this.url);
+        await page.goto(this.url + category + ".html");
         // let selectedCategory = await page.$$eval('.side_categories > ul > li > ul > li > a', (links, _category) => {
         //     links = links.map(a => a.textContent.replace(/(\r\n\t|\n|\r|\t|^\s|\s$|\B\s|\s\B)/gm, "") === _category ? a : null);
         //     let link = links.filter(tx => tx !== null)[0];
@@ -29,17 +29,18 @@ const scraperObject = {
                 let dataObj = {};
                 let newPage = await browser.newPage();
                 await newPage.goto(link, { waitUntil: "networkidle2" });
-                
+
                 page.on('console', msg => console.log(msg.text()));
                 dataObj['productTitle'] = await newPage.$eval('h1.product-name', text => text.textContent);
                 dataObj['productPrice'] = await newPage.$eval('.product-info-price > div > span > span > span > span', text => text.textContent);
                 dataObj['productDescription'] = await newPage.$eval('.product.attribute > .value', text => text.textContent);
-                dataObj['imageUrl'] = await page.evaluate(() => {
-                    let items = document.querySelectorAll('.active .item-image .img-responsive');
-                    return items[0];            
-                })
+                dataObj['imageUrl'] = await newPage.$eval('.active .product.item-image img.img-responsive ', img => {
+                    console.log(img);
+                    return img.src;
+                });
                 dataObj['productColor'] = await newPage.$eval('.swatch-attribute-selected-option', text => text.textContent);
                 resolve(dataObj);
+
                 await newPage.close();
             })
             //Warning: note well that you waited for the Promise using a for-in loop.
@@ -56,14 +57,18 @@ const scraperObject = {
             }
             let nextButtonExist = false;
             try {
-                const nextButton = await page.$eval('.next > a', a => a.textContent);
+                const nextButton = await page.$eval('li.pages-item-next > a', a => {
+                    console.log(a);
+                    return a.href
+                });
                 nextButtonExist = true;
             }
             catch (error) {
                 nextButtonExist = false;
             }
             if (nextButtonExist) {
-                await page.click('.next > a');
+                
+                await page.click('li.pages-item-next > a');
                 return scrapeCurrentPage();
             }
             await page.close();
